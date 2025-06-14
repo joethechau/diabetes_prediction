@@ -1,0 +1,188 @@
+---
+title: 'Diabetes Risk Prediction (PCA & Stepwise Selection)'
+author: "MINHCHAU"
+output: html_document
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r load-libraries, echo=TRUE, warning = FALSE, message = FALSE}
+library(dplyr)
+library(tidyr)
+library(car) 
+library(psych) # for pairs.panels()
+library(factoextra) # for fviz_cluster()
+library(ggplot2)
+
+```
+
+
+Diabetes is a chronic disease characterized by elevated blood glucose levels. A student at the National Institute of Diabetes is studying the diabetes status of a sample of 768 women from a population near Phoenix, Arizona. The dataset aims to provide insights into factors that contribute to the likelihood of having diabetes and can be used can be used to predict diabetes status based on the other variables.
+
+Use the dataset "diabetesdata.csv". The relevant variables include:
+
+-   pregnancies: The number of times the patient has been pregnant.
+-   glucose: Plasma glucose concentration (in mmol/L) measured during an oral glucose tolerance.
+-   bloodpressure: Diastolic blood pressure (in mm Hg).
+-   skinthickness: Thickness of the triceps skin-fold (in mm).
+-   insulin: Concentration of plasma glucose in (in µU/mL). Elevated insulin levels may indicate insulin resistance.
+-   BMI: Body Mass Index, a measure of body fat based on weight and height (in kg/m²).
+-   age : The patient's age in years.
+-   diabetesPF: A score assessing the likelihood of diabetes based on family history.
+-   outcome: The diabetes status, where a value of 0 indicates no diabetes and a value of 1 indicates the presence of diabetes
+
+```{r Q1-read-dataset, echo=TRUE}
+dt = read.csv('diabetesdata.csv')
+head(dt)
+```
+
+**Section I :**
+
+**Understand key concepts in PCA for dimensionality reduction.**
+
+(3a) Apply Principal Component Analysis (PCA) on the following variables: '`pregnancies'` , `'glucose'`, `'bloodpressure'`, `'skinthickness'`, `'insulin`', \``BMI','age'`and `'diabetesPF'.`
+
+-   Explain what high dimensionality in a dataset means.
+
+-   Perform PCA on the selected variables, standardizing them to have a mean of zero and unit variance. Store the resulting PCA object in diabetes.pca. (2 marks)
+
+::: {style="color: red"}
+High dimensionality means your dataset has a lot of features (columns/variables), which can mean dozens, hundreds, or even thousands.
+- Each new feature adds a new dimension, making the data space more complex.
+- As dimensions increase, data points become sparser
+- It becomes harder to visualize, analyze, or model relationships effectively.
+=️> We need PCAto reduce dimensionality while keeping the most important information
+:::
+```{r prcomp, echo=TRUE}
+
+pt1 <- dt %>% select(pregnancies, glucose, bloodpressure, skinthickness, insulin, BMI, age, diabetesPF )
+pt2 <- scale(pt1)
+pt3 <- prcomp(pt2, center=TRUE, scale.= TRUE)
+names(pt3)
+summary(pt3)
+fviz_eig(pt3)
+
+dt22 <- dt
+dt22$index <- rownames(dt)
+```
+
+(3b) A clinician is concerned that PCA may lead to information loss of the original data.
+
+-   Explain the proportion of variance (expressed as a percentage) captured by each Principal Component (PC), specifically from PC1 to PC8.
+
+-   Based on the clinician's recommendation to retain at least 60% of the cumulative proportion of variance, determine the minimum number of Principal Components required. 
+
+::: {style="color: red"}
+Component	Variance (%)
+
+PC1: The 1st principal component explains about 26.18% of the proportion of variance.
+
+PC2: The 2nd principal component explains about 21.64% of the proportion of variance.
+
+PC3: The 3rd principal component explains about 12.87% of the proportion of variance.
+
+PC4: The 4th principal component explains about 10.94% of the proportion of variance.
+
+PC5: The 5th principal component explains about 9.529% of the proportion of variance.
+
+PC6: The 6th principal component explains about 8.533% of the proportion of variance.
+
+PC7: The 7th principal component explains about 5.248% of the proportion of variance.
+
+PC8: The 8th principal component explains about 5.056% of the proportion of variance.
+
+The cumulative proportion of variance > 60 % at PC3. At least 3 Principle Components are needed for the cumulative proportions of variance to be at least 60%.=> minimum number of Principal Components needed is 3
+:::
+
+**Section II :**
+
+**Interpret principal components using PC loadings and the biplot.**
+
+(3c) Express the first two Principal Components (PC1 and PC2) mathematically as normalized linear combinations of the original variables. (2 marks)
+
+```{r rotation, echo=TRUE}
+rbind(pt3$rotation[, "PC1"], pt3$rotation[, "PC2"])
+round(pt3$rotation[, 1:2], 3)  
+
+```
+
+::: {style="color: red"}
+PC1 = -0.128.pegnancies -0.393.glucose - 0.360.bloodpressure -0.440.skinthickness -0.435.insulin-0.452.BMI - 0.198.age -0.271.diabetesPF
+PC2 = 0.594.pegnancies +0.174.glucose + 0.184.bloodpressure -0.332.skinthickness -0.251.insulin - 0.101.BMI + 0.621.age -0.122.diabetesPF
+:::
+
+(3d) A student claims that the principal components presented in the biplot lack interpretability. Create a biplot to visualize the PCA results. (2 marks)
+
+-   Analyse the principal component loadings and interpret principal component 1 (PC1) in the context of diabetes analysis.
+
+-   Using the principal component loadings and biplot, interpret Principal Component 2 (PC2) in the context of diabetes analysis.
+    
+```{r fviz-pca-bilot, echo=TRUE}
+fviz_pca_biplot(pt3, repel=TRUE, col.var = "steelblue", col.ind="gray30")
+```
+
+::: {style="color: red"}
+PC1
+The strongest contributors to PC1 are:BMI (-0.452), SkintThickness (-0.440), Insulin (-0.435), Glucose (-0.393)
+PC1 can be interpreted as a “Risk Factor Component.” People with higher values in glucose, BMI, insulin will have lower PC1 scores. 
+In the biplot, observations with high diabetes risk cluster in the negative PC1 direction. PC1 is useful for identifying individuals at higher risk for Type 2 diabetes (due to physiological indicators).
+
+PC2: can be interpreted as a "Demographic vs. Risk Factor Contrast"
+Positive loadings: Pregnancies (0.594), Age (0.621), Glucose (0.174) and blood pressure (0.184)
+Negative loadings: SkintThickness (-0.332), Insulin (-0.251), BMI (-0.101), DiabetesPF (-0.122)
+
+Higher PC2 scores are associated with older individuals with more pregnancies and milder metabolic signs. Lower PC2 scores are linked to younger individuals with higher BMI, more insulin resistance, and higher skin thickness — which are stronger indicators of diabetes risk.
+
+:::
+
+(3e) Fit a logistic regression model with 'outcome' as the response variable and the selected principal components from (3b) as predictors.
+
+-   Using statistical evidence, explain which principal components are statistically significant. Support your answer with appropriate statistical measures. 
+    
+::: {style="color: red"}
+
+Log-odds(Outcome) = -0.76021 - 0.68010 * PC1 + 0.37347 * PC2 + 0.47263 * PC3
+
+Since p-value of PC1, PC2, PC3 components are all smaller than 0.05 (p of PC1 < 2e-16, p of PC2 = 4.27e-09, p of PC3 = 1.92e-07), there is statistically evidence that PC1, PC2, PC3 components are statistically significant to this model at 5% level of significant.
+:::
+
+```{r logmodel, echo=TRUE}
+logmodel <- glm(dt$outcome ~ pt3$x[,"PC1"] + pt3$x[,"PC2"] + pt3$x[,"PC3"], data = dt, family = binomial())
+
+summary(logmodel)
+  
+```
+
+**Section III : Perform model selection using stepwise regression.**
+
+(3f) Perform model selection on the logistics regression model using stepwise regression. Use all variables as predictors and 'outcome' as the response. 
+
+-   Fit a full logistic regression model with all predictors and perform backward stepwise selection to remove insignificant predictors. What are the final selected variables?
+
+-   Next perform forward stepwise selection, starting with an intercept-only model. What are the final selected variables?
+
+
+```{r stepwiseregression, echo=TRUE}
+
+backward_model <- glm(outcome ~ ., data= dt, family = binomial)
+forward_model <- glm(outcome ~ 1, data =dt, family = binomial)
+
+#Backward stepwise model selection
+step(backward_model, direction = 'backward', trace = 1)
+#Forward stepwise model selection
+step(forward_model, scope = ~ pregnancies + glucose + bloodpressure + skinthickness + insulin + BMI + diabetesPF + age,  direction = 'forward', trace = 1)
+
+
+```
+::: {style="color: red"}
+Backward and Forward Stepwise Selection identified the most significant predictors for the outcome (diabetes).
+The forward model suggests that the best model is outcome ~ pregnancies + glucose + bloodpressure + insulin + BMI + diabetesPF + age => The forward model excludes skin thickness as a predictor.
+Based on the backward stepwise model, our best model is outcome ~ glucose + BMI + pregnancies + diabetesPF + bloodpressure + age + insulin.
+with the Coefficients:
+       glucose            BMI    pregnancies     diabetesPF  bloodpressure            age  
+       0.035112       0.090089       0.123172       0.947595      -0.013214       0.014789  
+      insulin  
+    -0.001157  
+=> The model has a reasonable fit (based on the deviance and AIC), and the coefficients tell us the relationship between these predictors and the likelihood of having diabetes.
+
